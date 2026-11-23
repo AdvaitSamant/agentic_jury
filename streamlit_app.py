@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from research_engine import MEMORY_PATH, MODEL, WorkflowSettings
+from research_engine import MEMORY_PATH, WorkflowSettings
 
 
 DEFAULT_TOPIC = "The latest developments in quantum computing"
@@ -70,7 +70,6 @@ with st.sidebar:
             icon=":material/offline_bolt:",
             color="orange",
         )
-        st.caption("Add OPENROUTER_API_KEY to enable online planning.")
     else:
         st.badge(
             "Offline mode",
@@ -96,29 +95,20 @@ with st.sidebar:
         )
 
     st.subheader("Workflow")
-    workflow_stages = [
-        ("01 · Planner", "Breaks the question into focused tasks."),
-        ("02 · Researcher", "Collects source-linked evidence."),
-        ("03 · Verifier", "Checks relevance and flags unsupported claims."),
-        ("04 · Synthesizer", "Builds a report and records its limitations."),
-    ]
-    for label, description in workflow_stages:
-        st.caption(label)
-        st.caption(description)
-
-    with st.expander("Credential setup"):
-        st.markdown(
-            f"Model: `{MODEL}`. Add credentials to `.streamlit/secrets.toml` "
-            "or set them in the process environment."
-        )
-        st.code(
-            'OPENROUTER_API_KEY = "your-key"\n'
-            'SERPER_API_KEY = "your-key"',
-            language="toml",
-        )
-        st.caption(
-            "Keys stay outside the app source. Never commit secrets.toml."
-        )
+    st.mermaid_chart(
+        """
+        flowchart TD
+            A["Planner<br/>Breaks the question into focused tasks"]
+            B["Researcher<br/>Collects source-linked evidence"]
+            C["Verifier<br/>Checks relevance and flags unsupported claims"]
+            D["Synthesizer<br/>Builds a report and records limitations"]
+            A --> B --> C --> D
+        """,
+        alt=(
+            "Research flow: Planner creates tasks, Researcher collects "
+            "evidence, Verifier checks support, and Synthesizer builds a report."
+        ),
+    )
 
 st.title("Research desk", icon=":material/manage_search:")
 st.write(
