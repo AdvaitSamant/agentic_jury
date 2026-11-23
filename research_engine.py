@@ -92,7 +92,7 @@ def _openrouter_chat(
     settings: WorkflowSettings,
     messages: list[dict[str, Any]],
     temperature: float = 0.3,
-    max_tokens: int = 1200,
+    max_tokens: int = 2500,
 ) -> str:
     if not settings.openrouter_api_key:
         raise RuntimeError("OpenRouter API key is missing.")
@@ -171,26 +171,32 @@ def _openrouter_chat(
                 },
                 timeout=45,
             )
-        except requests.RequestException as error:
-            raise RuntimeError(
-                f"OpenRouter network request failed ({type(error).__name__})."
-            ) from None
-
-        if response.status_code >= 400:
-            raise RuntimeError(
-                f"OpenRouter returned HTTP {response.status_code}."
-            )
-        try:
-            payload = response.json()
-        except ValueError:
-            raise RuntimeError(
-                "OpenRouter returned an unexpected response format."
-            ) from None
-        first_message = get_message(payload if isinstance(payload, dict) else None)
+            if response.status_code < 400:
+                payload = response.json()
+                second_message = get_message(
+                    payload if isinstance(payload, dict) else None
+                )
+                second_text = (
+                    second_message.get("content")
+                    if second_message is not None
+                    else None
+                )
+                if isinstance(second_text, str) and second_text.strip():
+                    first_message = second_message
+        except (requests.RequestException, ValueError):
+            pass
 
     text = first_message.get("content") if first_message is not None else None
     if not isinstance(text, str) or not text.strip():
-        raise RuntimeError("OpenRouter response did not include assistant text.")
+        reasoning_text = (
+            first_message.get("reasoning")
+            if first_message is not None
+            else None
+        )
+        if isinstance(reasoning_text, str) and reasoning_text.strip():
+            text = reasoning_text
+        else:
+            raise RuntimeError("OpenRouter response did not include assistant text.")
     return text.strip()
 
 
@@ -344,6 +350,7 @@ def call_llm(
     system_prompt: str,
     user_prompt: str,
     temperature: float = 0.3,
+    max_tokens: int = 2500,
 ) -> str:
     if not context.llm_active:
         raise RuntimeError("Online LLM mode is not active.")
@@ -355,6 +362,7 @@ def call_llm(
                 {"role": "user", "content": user_prompt},
             ],
             temperature=temperature,
+            max_tokens=max_tokens,
         )
     except RuntimeError as error:
         context.llm_active = False
@@ -434,6 +442,7 @@ def write_report(
                 f"Topic: {topic}\n\nFindings:\n{combined}\n\n"
                 "Use Overview, Evidence, Limitations, Sources headings.",
                 temperature=0.4,
+                max_tokens=3000,
             )
         except RuntimeError:
             pass
@@ -474,6 +483,7 @@ def refine_report(
                 f"Topic: {topic}\nTasks:\n{tasks}\n\n"
                 f"Draft:\n{draft_report}\n\nReturn refined report.",
                 temperature=0.3,
+                max_tokens=3000,
             )
         except RuntimeError:
             pass
